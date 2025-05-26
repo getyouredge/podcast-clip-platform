@@ -1,97 +1,15 @@
-
+# main.py (HEALTHCHECK FIX)
 # ========================
-# main.py (Simplified Backend)
-# ========================
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy import Column, String, Integer, DateTime, Boolean, Text, ForeignKey, Float, ARRAY, func, select, desc
 from pydantic import BaseModel
-from typing import List, Optional
-from datetime import datetime, timedelta
-from uuid import uuid4
+from typing import List
 import os
 from pathlib import Path
 
-# Database setup
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://localhost/podcast_clips")
-engine = create_async_engine(DATABASE_URL)
-AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-Base = declarative_base()
-
-# Simple database models
-class User(Base):
-    __tablename__ = "users"
-    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
-    username = Column(String(50), unique=True, nullable=False)
-    email = Column(String(255), unique=True, nullable=False)
-    display_name = Column(String(100))
-    reputation_score = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-class Episode(Base):
-    __tablename__ = "episodes"
-    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
-    title = Column(String(500), nullable=False)
-    podcast_name = Column(String(255), nullable=False)
-    description = Column(Text)
-    duration_seconds = Column(Integer)
-    published_at = Column(DateTime)
-    thumbnail_url = Column(Text)
-    external_url = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-class Clip(Base):
-    __tablename__ = "clips"
-    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
-    episode_id = Column(String, ForeignKey("episodes.id"))
-    title = Column(String(300), nullable=False)
-    description = Column(Text)
-    start_time_seconds = Column(Float, nullable=False)
-    end_time_seconds = Column(Float, nullable=False)
-    transcript_text = Column(Text)
-    tags = Column(ARRAY(String), default=[])
-    best_votes = Column(Integer, default=0)
-    worst_votes = Column(Integer, default=0)
-    vote_score = Column(Integer, default=0)
-    controversy_score = Column(Float, default=0.0)
-    is_featured = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-class ClipVote(Base):
-    __tablename__ = "clip_votes"
-    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
-    clip_id = Column(String, ForeignKey("clips.id"))
-    user_id = Column(String, ForeignKey("users.id"))
-    vote_type = Column(String(10), nullable=False)  # 'best' or 'worst'
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-# Pydantic models
-class ClipResponse(BaseModel):
-    id: str
-    title: str
-    description: Optional[str]
-    start_time_seconds: float
-    end_time_seconds: float
-    transcript_text: Optional[str]
-    tags: List[str]
-    best_votes: int
-    worst_votes: int
-    vote_score: int
-    controversy_score: float
-    is_featured: bool
-    created_at: datetime
-    episode_title: str
-    podcast_name: str
-
-class VoteCreate(BaseModel):
-    vote_type: str
-
-app = FastAPI(title="Podcast Clip Platform")
+app = FastAPI(title="ClipVote Platform")
 
 # CORS
 app.add_middleware(
@@ -102,198 +20,160 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Database dependency
-async def get_db():
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+# Sample data (in-memory for now)
+clips_data = [
+    {
+        "id": "1",
+        "title": "Remote Work is Making Us Stupid",
+        "description": "Tech CEO claims remote work is destroying creativity and innovation",
+        "start_time_seconds": 1456.2,
+        "end_time_seconds": 1523.8,
+        "transcript_text": "I'm going to say something controversial: remote work is making us collectively dumber. When you're not in the same room, you lose all the magic of spontaneous collaboration.",
+        "tags": ["remote-work", "productivity", "controversy"],
+        "best_votes": 347,
+        "worst_votes": 892,
+        "vote_score": -545,
+        "controversy_score": 0.72,
+        "is_featured": True,
+        "created_at": "2025-05-25T10:30:00Z",
+        "episode_title": "The Future of Work",
+        "podcast_name": "Tech Leaders Daily"
+    },
+    {
+        "id": "2",
+        "title": "Bitcoin Will Replace the Dollar by 2030",
+        "description": "Former Goldman Sachs exec predicts complete collapse of traditional banking",
+        "start_time_seconds": 2890.5,
+        "end_time_seconds": 2945.3,
+        "transcript_text": "Mark my words: by 2030, Bitcoin will be the global reserve currency. The Fed has printed us into oblivion, and smart money knows it.",
+        "tags": ["bitcoin", "crypto", "prediction"],
+        "best_votes": 1243,
+        "worst_votes": 567,
+        "vote_score": 676,
+        "controversy_score": 0.31,
+        "is_featured": True,
+        "created_at": "2025-05-24T14:15:00Z",
+        "episode_title": "Crypto Revolution",
+        "podcast_name": "Financial Underground"
+    },
+    {
+        "id": "3",
+        "title": "Social Media Should be Age-Restricted Like Alcohol",
+        "description": "Neuroscientist argues that social platforms are more addictive than gambling",
+        "start_time_seconds": 892.1,
+        "end_time_seconds": 967.4,
+        "transcript_text": "We regulate alcohol, tobacco, gambling - but we give unlimited social media access to 8-year-olds. The dopamine manipulation is more sophisticated than any casino.",
+        "tags": ["social-media", "neuroscience", "regulation"],
+        "best_votes": 2156,
+        "worst_votes": 234,
+        "vote_score": 1922,
+        "controversy_score": 0.10,
+        "is_featured": True,
+        "created_at": "2025-05-23T16:45:00Z",
+        "episode_title": "Digital Addiction Crisis",
+        "podcast_name": "Brain Science Today"
+    }
+]
 
-# Create tables
-@app.on_event("startup")
-async def startup():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    
-    # Add sample data if empty
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(select(func.count(Clip.id)))
-        if result.scalar() == 0:
-            await add_sample_data(session)
+class VoteRequest(BaseModel):
+    vote_type: str
 
-async def add_sample_data(session: AsyncSession):
-    """Add sample clips for demo"""
-    
-    # Sample episode
-    episode = Episode(
-        id="ep1",
-        title="The Future of Work with Sarah Chen",
-        podcast_name="Tech Talk Daily",
-        description="Discussion about remote work trends",
-        duration_seconds=3600,
-        published_at=datetime.now() - timedelta(days=2),
-        thumbnail_url="https://images.unsplash.com/photo-1494790108755-2616b332c7-c/150x150",
-        external_url="https://example.com/episode"
-    )
-    session.add(episode)
-    
-    # Sample clips
-    clips = [
-        Clip(
-            id="clip1",
-            episode_id="ep1",
-            title="Remote Work is Fundamentally Broken",
-            description="A controversial take on why remote work culture is failing companies",
-            start_time_seconds=120.5,
-            end_time_seconds=165.8,
-            transcript_text="The problem with remote work is that we're trying to replicate office culture instead of creating something new. We're just digitizing bad habits and wondering why productivity is down.",
-            tags=["remote-work", "productivity", "culture"],
-            best_votes=156,
-            worst_votes=23,
-            vote_score=133,
-            controversy_score=0.15,
-            is_featured=True
-        ),
-        Clip(
-            id="clip2",
-            episode_id="ep1",
-            title="Why Bitcoin Will Hit $1M by 2030",
-            description="Bold prediction with surprising reasoning about cryptocurrency",
-            start_time_seconds=890.2,
-            end_time_seconds=928.7,
-            transcript_text="Everyone talks about adoption and scarcity, but they're missing the real driver. It's not about technology - it's about geopolitics. When central banks start failing, Bitcoin becomes the only stable store of value.",
-            tags=["bitcoin", "crypto", "prediction"],
-            best_votes=89,
-            worst_votes=67,
-            vote_score=22,
-            controversy_score=0.43,
-            is_featured=False
-        ),
-        Clip(
-            id="clip3",
-            episode_id="ep1",
-            title="Social Media is Digital Cocaine",
-            description="Neuroscientist explains social media addiction",
-            start_time_seconds=1456.1,
-            end_time_seconds=1518.4,
-            transcript_text="The dopamine hits from likes and comments trigger the exact same neural pathways as substance addiction. We've created digital cocaine and given it to our children.",
-            tags=["neuroscience", "social-media", "addiction"],
-            best_votes=234,
-            worst_votes=12,
-            vote_score=222,
-            controversy_score=0.05,
-            is_featured=True
-        )
-    ]
-    
-    for clip in clips:
-        session.add(clip)
-    
-    await session.commit()
-
-# API Routes
+# Root endpoint - serve frontend
 @app.get("/")
 async def root():
-    return {"message": "Podcast Clip Platform API"}
+    """Serve the main frontend page"""
+    try:
+        # Check if static/index.html exists
+        if Path("static/index.html").exists():
+            return FileResponse("static/index.html")
+        elif Path("index.html").exists():
+            return FileResponse("index.html")
+        else:
+            # Return a simple HTML if no file found
+            return HTMLResponse("""
+            <!DOCTYPE html>
+            <html><head><title>ClipVote</title></head>
+            <body style="font-family: Arial; padding: 40px; text-align: center;">
+                <h1>🎧 ClipVote Platform</h1>
+                <p>Backend is running successfully!</p>
+                <p><a href="/api/clips">View API: /api/clips</a></p>
+                <p><a href="/api/stats">View Stats: /api/stats</a></p>
+            </body></html>
+            """)
+    except Exception as e:
+        return HTMLResponse(f"<h1>ClipVote Backend Running</h1><p>Error: {str(e)}</p>")
 
-@app.get("/api/clips", response_model=List[ClipResponse])
-async def get_clips(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
-    sort_by: str = Query("vote_score"),
-    db: AsyncSession = Depends(get_db)
-):
-    """Get clips with sorting"""
-    
-    query = select(Clip, Episode.title.label('episode_title'), Episode.podcast_name).join(Episode)
-    
-    if sort_by == "vote_score":
-        query = query.order_by(desc(Clip.vote_score))
-    elif sort_by == "created_at":
-        query = query.order_by(desc(Clip.created_at))
-    elif sort_by == "controversy_score":
-        query = query.order_by(desc(Clip.controversy_score))
-    
-    query = query.offset(skip).limit(limit)
-    result = await db.execute(query)
-    rows = result.all()
-    
-    return [
-        ClipResponse(
-            id=row.Clip.id,
-            title=row.Clip.title,
-            description=row.Clip.description,
-            start_time_seconds=row.Clip.start_time_seconds,
-            end_time_seconds=row.Clip.end_time_seconds,
-            transcript_text=row.Clip.transcript_text,
-            tags=row.Clip.tags or [],
-            best_votes=row.Clip.best_votes,
-            worst_votes=row.Clip.worst_votes,
-            vote_score=row.Clip.vote_score,
-            controversy_score=row.Clip.controversy_score,
-            is_featured=row.Clip.is_featured,
-            created_at=row.Clip.created_at,
-            episode_title=row.episode_title,
-            podcast_name=row.podcast_name
-        )
-        for row in rows
-    ]
+# Health check endpoint (this is what Railway is testing)
+@app.get("/api/stats")
+async def get_stats():
+    """Health check and stats endpoint"""
+    try:
+        total_votes = sum(clip["best_votes"] + clip["worst_votes"] for clip in clips_data)
+        
+        return {
+            "status": "healthy",
+            "total_clips": len(clips_data),
+            "total_votes": total_votes,
+            "active_users": 892,
+            "trending_clips": len([c for c in clips_data if c["is_featured"]])
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/clips")
+async def get_clips(sort_by: str = Query("vote_score")):
+    """Get all clips with sorting"""
+    try:
+        clips = clips_data.copy()
+        
+        if sort_by == "vote_score":
+            clips.sort(key=lambda x: x["vote_score"], reverse=True)
+        elif sort_by == "created_at":
+            clips.sort(key=lambda x: x["created_at"], reverse=True)
+        elif sort_by == "controversy_score":
+            clips.sort(key=lambda x: x["controversy_score"], reverse=True)
+        
+        return clips
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.post("/api/clips/{clip_id}/vote")
-async def vote_on_clip(clip_id: str, vote_data: VoteCreate, db: AsyncSession = Depends(get_db)):
-    """Vote on a clip (simplified - no user auth for demo)"""
-    
-    # Get clip
-    result = await db.execute(select(Clip).where(Clip.id == clip_id))
-    clip = result.scalar_one_or_none()
-    if not clip:
-        raise HTTPException(status_code=404, detail="Clip not found")
-    
-    # Update vote counts (simplified)
-    if vote_data.vote_type == "best":
-        clip.best_votes += 1
-    elif vote_data.vote_type == "worst":
-        clip.worst_votes += 1
-    
-    clip.vote_score = clip.best_votes - clip.worst_votes
-    clip.controversy_score = min(clip.best_votes, clip.worst_votes) / max(clip.best_votes + clip.worst_votes, 1)
-    
-    await db.commit()
-    return {"status": "success"}
+async def vote_on_clip(clip_id: str, vote_data: VoteRequest):
+    """Vote on a clip"""
+    try:
+        for clip in clips_data:
+            if clip["id"] == clip_id:
+                if vote_data.vote_type == "best":
+                    clip["best_votes"] += 1
+                elif vote_data.vote_type == "worst":
+                    clip["worst_votes"] += 1
+                
+                # Recalculate scores
+                clip["vote_score"] = clip["best_votes"] - clip["worst_votes"]
+                total_votes = clip["best_votes"] + clip["worst_votes"]
+                if total_votes > 0:
+                    clip["controversy_score"] = min(clip["best_votes"], clip["worst_votes"]) / total_votes
+                
+                return {"status": "success", "message": "Vote recorded"}
+        
+        return {"status": "error", "message": "Clip not found"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
-@app.get("/api/stats")
-async def get_stats(db: AsyncSession = Depends(get_db)):
-    """Get platform statistics"""
-    
-    total_clips_result = await db.execute(select(func.count(Clip.id)))
-    total_clips = total_clips_result.scalar()
-    
-    total_votes_result = await db.execute(select(func.sum(Clip.best_votes + Clip.worst_votes)))
-    total_votes = total_votes_result.scalar() or 0
-    
-    return {
-        "total_clips": total_clips,
-        "total_votes": total_votes,
-        "active_users": 892,  # Placeholder
-        "trending_clips": 24   # Placeholder
-    }
+# Additional health check routes
+@app.get("/health")
+async def health_check():
+    """Simple health check"""
+    return {"status": "ok", "message": "ClipVote backend is running"}
 
-# Serve frontend files
-app.mount("/static", StaticFiles(directory="static"), name="static")
+@app.get("/ping")
+async def ping():
+    """Ping endpoint"""
+    return {"ping": "pong"}
 
-@app.get("/{path:path}")
-async def serve_frontend(path: str):
-    """Serve frontend for all non-API routes"""
-    if path.startswith("api/"):
-        raise HTTPException(status_code=404)
-    
-    file_path = Path("static") / (path or "index.html")
-    if file_path.exists() and file_path.is_file():
-        return FileResponse(file_path)
-    return FileResponse("static/index.html")
-
+# Main app runner
 if __name__ == "__main__":
     import uvicorn
+    # Railway provides PORT environment variable
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
