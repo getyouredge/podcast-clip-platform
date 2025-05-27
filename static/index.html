@@ -1,10 +1,9 @@
-<!-- static/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClipVote - Discover Viral Podcast Clips</title>
+    <title>ClipVote - Defense Tech Podcast Clips</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -248,7 +247,7 @@
                     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                         <div className="text-center">
                             <div className="w-8 h-8 bg-blue-500 rounded-lg mb-4 mx-auto animate-pulse"></div>
-                            <p className="text-gray-600">Loading clips...</p>
+                            <p className="text-gray-600">Loading defense tech clips...</p>
                         </div>
                     </div>
                 );
@@ -265,7 +264,10 @@
                                         <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                                             <Play className="w-4 h-4 text-white" />
                                         </div>
-                                        <h1 className="text-xl font-bold text-gray-900">ClipVote</h1>
+                                        <div>
+                                            <h1 className="text-xl font-bold text-gray-900">ClipVote</h1>
+                                            <p className="text-xs text-gray-500">Defense Tech Clips</p>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -304,9 +306,17 @@
                             </div>
                         </div>
 
+                        {/* Hero Banner */}
+                        <div className="bg-gradient-to-r from-blue-600 to-purple-700 text-white rounded-xl p-6 mb-6">
+                            <div className="text-center">
+                                <h2 className="text-2xl font-bold mb-2">🎯 Defense Tech's Most Controversial Takes</h2>
+                                <p className="text-blue-100">Vote on the clips that divide the defense community</p>
+                            </div>
+                        </div>
+
                         {/* Filters */}
                         <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900">Viral Clips</h2>
+                            <h2 className="text-2xl font-bold text-gray-900">Viral Defense Clips</h2>
                             
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
@@ -383,7 +393,7 @@
                                 </div>
                                 
                                 {currentClip.transcript_text && (
-                                    <div className="text-sm text-gray-600 italic mb-4">
+                                    <div className="text-sm text-gray-600 italic mb-4 bg-gray-50 p-3 rounded-lg border-l-4 border-blue-400">
                                         "{currentClip.transcript_text}"
                                     </div>
                                 )}
