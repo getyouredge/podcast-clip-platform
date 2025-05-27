@@ -1,13 +1,8 @@
-# main.py (HEALTHCHECK FIX)
-# ========================
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import List
 import os
-from pathlib import Path
 
 app = FastAPI(title="ClipVote Platform")
 
@@ -193,39 +188,19 @@ clips_data = [
     }
 ]
 
-
 class VoteRequest(BaseModel):
     vote_type: str
 
-# Root endpoint - serve frontend
+# Root endpoint - serve the React frontend
 @app.get("/")
 async def root():
     """Serve the main frontend page"""
-    try:
-        # Check if static/index.html exists
-        if Path("static/index.html").exists():
-            return FileResponse("static/index.html")
-        elif Path("index.html").exists():
-            return FileResponse("index.html")
-        else:
-            # Return a simple HTML if no file found
-            return HTMLResponse("""
-            <!DOCTYPE html>
-            <html><head><title>ClipVote</title></head>
-            <body style="font-family: Arial; padding: 40px; text-align: center;">
-                <h1>🎧 ClipVote Platform</h1>
-                <p>Backend is running successfully!</p>
-                <p><a href="/api/clips">View API: /api/clips</a></p>
-                <p><a href="/api/stats">View Stats: /api/stats</a></p>
-            </body></html>
-            """)
-    except Exception as e:
-        return HTMLResponse(f"<h1>ClipVote Backend Running</h1><p>Error: {str(e)}</p>")
+    return FileResponse("index.html")
 
-# Health check endpoint (this is what Railway is testing)
+# API endpoints
 @app.get("/api/stats")
 async def get_stats():
-    """Health check and stats endpoint"""
+    """Get platform statistics"""
     try:
         total_votes = sum(clip["best_votes"] + clip["worst_votes"] for clip in clips_data)
         
@@ -279,20 +254,13 @@ async def vote_on_clip(clip_id: str, vote_data: VoteRequest):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# Additional health check routes
+# Health check
 @app.get("/health")
 async def health_check():
     """Simple health check"""
     return {"status": "ok", "message": "ClipVote backend is running"}
 
-@app.get("/ping")
-async def ping():
-    """Ping endpoint"""
-    return {"ping": "pong"}
-
-# Main app runner
 if __name__ == "__main__":
     import uvicorn
-    # Railway provides PORT environment variable
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=port)
